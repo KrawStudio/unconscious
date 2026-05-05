@@ -41,457 +41,32 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        button:hover:not(:disabled) {
-            background-color: #555;
-        }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        #start-btn {
-            background-color: #4CAF50;
-            border-color: #45a049;
-        }
-        #start-btn:hover:not(:disabled) {
-            background-color: #45a049;
-        }
-        #restart-btn {
-            background-color: #008CBA;
-            border-color: #007bb5;
-        }
-        #restart-btn:hover:not(:disabled) {
-            background-color: #007bb5;
-        }
-    </style>
-</head>
-<body>
-    <div id="event-text"></div>
-    <div id="controls">
-        <button id="start-btn" disabled>▶ Старт (включить музыку и таймер)</button>
-        <button id="restart-btn" disabled>↺ Перезапустить</button>
-    </div>
-
-    <audio id="bg-music" loop preload="auto">
-        <source src="music.mp3" type="audio/mpeg">
-        Твой браузер не поддерживает аудио.
-    </audio>
-
-    <script>
-        (function() {
-            // ---------- ДАННЫЕ (ЗАГРУЖАЮТСЯ ИЗ JSON) ----------
-            let heroBonuses = [];
-            let monsterBonuses = [];
-            let neutralEvents = [];
-            let dataReady = false;
-
-            // ---------- СОСТОЯНИЕ ТАЙМЕРА ----------
-            const audio = document.getElementById('bg-music');
-            const eventDiv = document.getElementById('event-text');
-            const startBtn = document.getElementById('start-btn');
-            const restartBtn = document.getElementById('restart-btn');
-
-            let timerId = null;
-            let eventsShown = 0;
-            let lastTwoBonusTypes = [];
-
-            // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
-            function getRandomTime() {
-                const min = 5 * 60 * 1000;
-                const max = 8 * 60 * 1000;
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-
-            function randomItem(arr) {
-                return arr[Math.floor(Math.random() * arr.length)];
-            }
-
-            function selectEvent() {
-                if (!dataReady) {
-                    return { type: 'neutral', text: 'Ожидание загрузки событий...' };
-                }
-                const nextEventNumber = eventsShown + 1;
-
-                // Каждое 5-е событие — нейтральное
-                if (nextEventNumber % 5 === 0) {
-                    return { type: 'neutral', text: randomItem(neutralEvents) };
-                }
-
-                let candidateType = Math.random() < 0.5 ? 'hero' : 'monster';
-
-                // Не допускаем 3 одинаковых бонуса подряд
-                if (lastTwoBonusTypes.length === 2 && lastTwoBonusTypes[0] === lastTwoBonusTypes[1] && lastTwoBonusTypes[0] === candidateType) {
-                    candidateType = candidateType === 'hero' ? 'monster' : 'hero';
-                }
-
-                lastTwoBonusTypes.push(candidateType);
-                if (lastTwoBonusTypes.length > 2) lastTwoBonusTypes.shift();
-
-                if (candidateType === 'hero') {
-                    return { type: 'hero', text: randomItem(heroBonuses) };
-                } else {
-                    return { type: 'monster', text: randomItem(monsterBonuses) };
-                }
-            }
-
-            function onTimerFinish() {
-                audio.pause();
-                audio.currentTime = 0;
-                document.body.style.backgroundColor = '#800000';
-                const event = selectEvent();
-                eventsShown++;
-                eventDiv.style.display = 'block';
-                eventDiv.style.color = 'white';
-                eventDiv.textContent = event.text;
-                restartBtn.disabled = false;
-                startBtn.disabled = true;
-            }
-
-            function startGame() {
-                if (!dataReady) {
-                    console.warn('События ещё не загружены. Попробуйте через секунду.');
-                    return;
-                }
-                if (timerId) clearTimeout(timerId);
-
-                document.body.style.backgroundColor = '#111';
-                eventDiv.style.display = 'none';
-                eventDiv.textContent = '';
-
-                audio.play().catch(e => console.warn('Автозапуск музыки заблокирован браузером.'));
-
-                const delay = getRandomTime();
-                console.log(`Таймер запущен на ${delay / 1000} секунд`);
-                timerId = setTimeout(() => {
-                    onTimerFinish();
-                    timerId = null;
-                }, delay);
-
-                startBtn.disabled = true;
-                restartBtn.disabled = false;
-            }
-
-            function restartGame() {
-                if (!dataReady) return;
-                if (timerId) clearTimeout(timerId);
-                eventsShown = 0;
-                lastTwoBonusTypes = [];
-                document.body.style.backgroundColor = '#111';
-                eventDiv.style.display = 'none';
-                eventDiv.textContent = '';
-                audio.pause();
-                audio.currentTime = 0;
-                startGame();
-            }
-
-            // ---------- ЗАГРУЗКА JSON ----------
-            async function loadEvents() {
-                try {
-                    const response = await fetch('events.json');
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-
-                    if (!data.heroBonuses || !data.monsterBonuses || !data.neutralEvents) throw new Error('Неверная структура JSON');
-                    if (!data.heroBonuses.length || !data.monsterBonuses.length || !data.neutralEvents.length) throw new Error('Один из массивов пуст');
-
-                    heroBonuses = data.heroBonuses;
-                    monsterBonuses = data.monsterBonuses;
-                    neutralEvents = data.neutralEvents;
-                    dataReady = true;
-
-                    startBtn.disabled = false;
-                    console.log('События успешно загружены');
-                } catch (err) {
-                    console.error('Ошибка загрузки events.json:', err.message);
-                    startBtn.disabled = true;
-                    startBtn.title = 'Нет events.json';
-                }
-            }
-
-            loadEvents();
-            startBtn.addEventListener('click', startGame);
-            restartBtn.addEventListener('click', restartGame);
-        })();
-    </script>
-</body>
-</html>            font-size: 1rem;
-            background-color: #333;
-            color: white;
-            border: 1px solid #666;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover:not(:disabled) {
-            background-color: #555;
-        }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        #start-btn {
-            background-color: #4CAF50;
-            border-color: #45a049;
-        }
-        #start-btn:hover:not(:disabled) {
-            background-color: #45a049;
-        }
-        #restart-btn {
-            background-color: #008CBA;
-            border-color: #007bb5;
-        }
-        #restart-btn:hover:not(:disabled) {
-            background-color: #007bb5;
-        }
-        #loading {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            color: #ffcc00;
-            max-width: 400px;
-            z-index: 100;
-        }
-        .error-detail {
-            font-size: 0.8rem;
-            color: #ff8888;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div id="event-text"></div>
-    <div id="controls">
-        <button id="start-btn" disabled>▶ Старт (включить музыку и таймер)</button>
-        <button id="restart-btn" disabled>↺ Перезапустить</button>
-    </div>
-    <div id="loading">⏳ Загрузка событий...</div>
-
-    <audio id="bg-music" loop preload="auto">
-        <source src="music.mp3" type="audio/mpeg">
-        Твой браузер не поддерживает аудио.
-    </audio>
-
-    <script>
-        (function() {
-            // ---------- ПЕРЕМЕННЫЕ ДЛЯ ЗАГРУЖЕННЫХ ДАННЫХ ----------
-            let heroBonuses = [];
-            let monsterBonuses = [];
-            let neutralEvents = [];
-            let dataLoaded = false;
-            let loadError = false;
-
-            // ---------- ОСТАЛЬНЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ ----------
-            const audio = document.getElementById('bg-music');
-            const eventDiv = document.getElementById('event-text');
-            const startBtn = document.getElementById('start-btn');
-            const restartBtn = document.getElementById('restart-btn');
-            const loadingDiv = document.getElementById('loading');
-
-            let timerId = null;
-            let eventsShown = 0;
-            let lastTwoBonusTypes = [];
-
-            // ---------- ФУНКЦИЯ ЗАГРУЗКИ JSON С ПОДРОБНЫМИ ОШИБКАМИ ----------
-            async function loadEvents() {
-                try {
-                    const response = await fetch('events.json?_=' + Date.now()); // маленький хак, чтобы избежать кэша
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    const text = await response.text();
-                    let data;
-                    try {
-                        data = JSON.parse(text);
-                    } catch (jsonErr) {
-                        // Показываем позицию ошибки
-                        const msg = jsonErr.message;
-                        throw new Error(`Ошибка парсинга JSON: ${msg}\nПроверьте синтаксис файла events.json (лишние запятые, кавычки и т.д.)`);
-                    }
-                    
-                    // Валидация структуры
-                    if (!data.heroBonuses || !data.monsterBonuses || !data.neutralEvents) {
-                        throw new Error('Неверная структура JSON: отсутствуют поля heroBonuses, monsterBonuses или neutralEvents');
-                    }
-                    if (!Array.isArray(data.heroBonuses) || !Array.isArray(data.monsterBonuses) || !Array.isArray(data.neutralEvents)) {
-                        throw new Error('Поля JSON должны быть массивами');
-                    }
-                    if (data.heroBonuses.length === 0 || data.monsterBonuses.length === 0 || data.neutralEvents.length === 0) {
-                        throw new Error('Массивы событий не могут быть пустыми');
-                    }
-
-                    heroBonuses = data.heroBonuses;
-                    monsterBonuses = data.monsterBonuses;
-                    neutralEvents = data.neutralEvents;
-                    dataLoaded = true;
-                    loadError = false;
-                    loadingDiv.innerHTML = '✅ События загружены';
-                    loadingDiv.style.color = '#a0ffa0';
-                    
-                    startBtn.disabled = false;
-                } catch (err) {
-                    console.error('Ошибка загрузки events.json:', err);
-                    loadError = true;
-                    loadingDiv.innerHTML = `❌ Ошибка загрузки: ${err.message}<br><span class="error-detail">Проверьте наличие events.json и его синтаксис.</span>`;
-                    loadingDiv.style.color = '#ffaaaa';
-                    startBtn.disabled = true;
-                    startBtn.title = 'Не удалось загрузить события';
-                }
-            }
-
-            // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
-            function getRandomTime() {
-                const min = 5 * 60 * 1000;
-                const max = 8 * 60 * 1000;
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-
-            function randomItem(arr) {
-                return arr[Math.floor(Math.random() * arr.length)];
-            }
-
-            function selectEvent() {
-                if (!dataLoaded) {
-                    return { type: 'neutral', text: 'События не загружены. Перезагрузите страницу.' };
-                }
-                const nextEventNumber = eventsShown + 1;
-
-                if (nextEventNumber % 5 === 0) {
-                    return { type: 'neutral', text: randomItem(neutralEvents) };
-                }
-
-                let candidateType;
-                const types = ['hero', 'monster'];
-                const randomIndex = Math.floor(Math.random() * 2);
-                candidateType = types[randomIndex];
-
-                if (lastTwoBonusTypes.length === 2) {
-                    const [a, b] = lastTwoBonusTypes;
-                    if (a === b && a === candidateType) {
-                        candidateType = (candidateType === 'hero') ? 'monster' : 'hero';
-                    }
-                }
-
-                lastTwoBonusTypes.push(candidateType);
-                if (lastTwoBonusTypes.length > 2) lastTwoBonusTypes.shift();
-
-                if (candidateType === 'hero') {
-                    return { type: 'hero', text: randomItem(heroBonuses) };
-                } else {
-                    return { type: 'monster', text: randomItem(monsterBonuses) };
-                }
-            }
-
-            function onTimerFinish() {
-                audio.pause();
-                audio.currentTime = 0;
-                document.body.style.backgroundColor = '#800000';
-                const event = selectEvent();
-                eventsShown++;
-                eventDiv.style.display = 'block';
-                eventDiv.style.color = 'white';
-                eventDiv.textContent = event.text;
-                restartBtn.disabled = false;
-                startBtn.disabled = true;
-            }
-
-            function startGame() {
-                if (!dataLoaded) {
-                    alert('События ещё не загружены. Обновите страницу или проверьте файл events.json.');
-                    return;
-                }
-                if (timerId) clearTimeout(timerId);
-
-                document.body.style.backgroundColor = '#111';
-                eventDiv.style.display = 'none';
-                eventDiv.textContent = '';
-
-                audio.play().catch(e => console.warn('Автозапуск музыки заблокирован.'));
-
-                const delay = getRandomTime();
-                console.log(`Таймер запущен на ${delay / 1000} секунд`);
-                timerId = setTimeout(() => {
-                    onTimerFinish();
-                    timerId = null;
-                }, delay);
-
-                startBtn.disabled = true;
-                restartBtn.disabled = false;
-            }
-
-            function restartGame() {
-                if (!dataLoaded) {
-                    alert('События не загружены, перезапуск невозможен.');
-                    return;
-                }
-                if (timerId) clearTimeout(timerId);
-                eventsShown = 0;
-                lastTwoBonusTypes = [];
-                document.body.style.backgroundColor = '#111';
-                eventDiv.style.display = 'none';
-                eventDiv.textContent = '';
-                audio.pause();
-                audio.currentTime = 0;
-                startGame();
-            }
-
-            // ---------- ИНИЦИАЛИЗАЦИЯ ----------
-            loadEvents();
-            startBtn.addEventListener('click', startGame);
-            restartBtn.addEventListener('click', restartGame);
-            restartBtn.disabled = true;
-            startBtn.disabled = true;
-        })();
-    </script>
-</body>
-</html>            font-size: 1rem;
-            background-color: #333;
-            color: white;
-            border: 1px solid #666;
-            border-radius: 5px;
-            cursor: pointer;
-        }
         button:hover {
             background-color: #555;
         }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
         #start-btn {
             background-color: #4CAF50;
             border-color: #45a049;
         }
-        #start-btn:hover:not(:disabled) {
+        #start-btn:hover {
             background-color: #45a049;
         }
         #restart-btn {
             background-color: #008CBA;
             border-color: #007bb5;
         }
-        #restart-btn:hover:not(:disabled) {
+        #restart-btn:hover {
             background-color: #007bb5;
-        }
-        #loading {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            color: #ffcc00;
         }
     </style>
 </head>
 <body>
     <div id="event-text"></div>
+
     <div id="controls">
-        <button id="start-btn" disabled>▶ Старт (включить музыку и таймер)</button>
+        <button id="start-btn">▶ Старт (включить музыку и таймер)</button>
         <button id="restart-btn" disabled>↺ Перезапустить</button>
     </div>
-    <div id="loading">⏳ Загрузка событий...</div>
 
     <audio id="bg-music" loop preload="auto">
         <source src="music.mp3" type="audio/mpeg">
@@ -500,108 +75,132 @@
 
     <script>
         (function() {
-            // ---------- ПЕРЕМЕННЫЕ ДЛЯ ЗАГРУЖЕННЫХ ДАННЫХ ----------
-            let heroBonuses = [];
-            let monsterBonuses = [];
-            let neutralEvents = [];
-            let dataLoaded = false;
-            let loadError = false;
+            // ---------- ОБНОВЛЁННЫЕ СПИСКИ СОБЫТИЙ ----------
+            const heroBonuses = [
+                "Герой меняет местами две любые карты локаций на игровом поле.",
+                "Герой перемещает одного любого монстра на любую другую локацию.",
+                "Все монстры немедленно перемещаются на одну локацию дальше от героя. (в любом направлении)",
+                "Герой перемещается на любую локацию по своему выбору.",
+                "В этом раунде на обдумывание хода монстров дается 30 секунд. Если не успевают, их ход пропускается.",
+                "Монстры в этом раунде не могут обсуждать свои действия друг с другом.",
+                "Герой может подсмотреть 3 верхние карты из колоды предметов и вернуть их на место в нужном порядке.",
+                "В этом раунде герой может один раз избежать столкновения: если он должен вступить в бой на локации с монстром, вместо этого он может отойти на соседнюю локацию.",
+                "Если в этом раунде произойдет столкновение, герой может перебросить кубы один раз.",
+                "Если в этом раунде произойдет столкновение, герой может сдаться, чтобы немедленно сбежать на соседнюю локацию (монстр не забирает ментальное здоровье).",
+                "Если в этом раунде произойдет столкновение, герой может потратить одну карту ментального здоровья, чтобы автоматически победить. Карта ментального здоровья переходит в сброс, а не монстру.",
+                "Если в этом раунде произойдет столкновение, в случае проигрыша герой может отдать карту предмета вместо карты ментального здоровья. Монстр сможет использовать ее, адаптируя особенность карты по договоренности с игроками",
+                "Герой восстанавливает одну карту ментального здоровья из сброса.",
+                "Герой может отдать монстру одну карту ментального здоровья, чтобы до конца игры лишить его одного из его открытых навыков.",
+                "Герой может сбросить 2 карты предметов, чтобы немедленно переместить любого монстра на любую другую локацию.",
+                "Герой немедленно берет одну карту предмета из колоды.",
+                "Герой может обменять одну свою карту предмета на любую карту из сброса предметов.",
+                "Одно обычное оружие героя до конца раунда дает +1 дополнительный кубик в ближайшем столкновении.",
+                "В этом раунде монстры не могут использовать свои проклятые предметы.",
+                "Монстры теряют один из своих проклятых предметов на выбор героя.",
+                "Все открытые навыки монстров не работают в этом раунде.",
+                "Один из монстров (по выбору героя) не может использовать свои навыки в этом раунде.",
+                "Все монстры в этом раунде получают штраф –1 к скорости за каждый открытый навык.",
+                "Одна локация по выбору героя становится 'исцеляющей' до конца раунда (герой объявляет свой выбор до начала фазы перемещений)",
+                "Герой может сбросить все карты в инвентаре в обмен на одну карту ментального здоровья из сброса.",
+                "Герой может сбросить одну карту предмета (на выбор монстров), чтобы они не атаковали его в этом раунде.",
+                "Герой может сбросить три карты предметов, чтобы немедленно взять одно легендарное оружие из колоды или сброса.",
+                "Герой бросает куб: результат делится на 2 — столько карт предметов он может взять в конце раунда.",
+                "Герой меняет местами двух любых монстров на поле.",
+                "В этом раунде монстры не получают наград за победу над героем.",
+                "Герой может немедленно переместить любого одного монстра на локацию с другим монстром."
+            ];
 
-            // ---------- ОСТАЛЬНЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ ----------
+            const monsterBonuses = [
+                "Все монстры немедленно перемещаются на одну локацию ближе к герою.",
+                "В этом раунде на обдумывание хода героя дается 30 секунд. Если не успевает, он ходит по случайному выбору. В случае, герой упирается «в стену» в ходе перемещения, на этом его ход завершается.",
+                "В ближайшем столкновении монстры могут заставить героя перебросить любой куб на свой выбор один раз.",
+                "В этом раунде, если герой заканчивает движение на локации, соседней с монстром, между ними происходит столкновение.",
+                "В ближайшем столкновении герой получает бросает на 1 кубик меньше.",
+                "Герой теряет одну карту ментального здоровья без боя, но кладет ее в сброс.",
+                "Герой сбрасывает одну карту предмета на выбор монстров в сброс.",
+                "Одно легендарное оружие героя до конца раунда дает на 1 кубик меньше.",
+                "Все карты предметов в руке героя не работают до конца раунда.",
+                "Монстры мгновенно открывают один из своих еще не открытых навыков.",
+                "Один из монстров может немедленно применить один из своих навыков (даже не открытый) прямо сейчас, если это возможно.",
+                "Любая локация по выбору героя становится 'опасной' до конца раунда: закончив на ней свой ход герой теряет 1 ментальное здоровье",
+                "В этом раунде герой не получает наград за победу над монстрами.",
+                "Один из монстров может вернуть любую карту проклятого предмета из сброса.",
+                "Монстры берут 3 карты проклятых предметов, изучают их и возвращают в колоду в нужном им порядке",
+                "Если в этом раунде произойдет столкновение с несколькими монстрами, Герой должен сражаться с каждым из монстров, даже если уже проиграл одному из них."
+            ];
+
+            const neutralEvents = [
+                "Герой убирает одну выбранную локацию с поля и заменяет её на любую случайную новую (из неиспользуемой части карт локаций).",
+                "Скорость каждого монстра в этом раунде определяется броском куба.",
+                "Герой может взять одно легендарное оружие из сброса или колоды, но взамен монстры немедленно перемещаются на одну локацию ближе к герою.",
+                "Одна локация по выбору героя становится 'ловушкой' до конца раунда: первый, кто входит на неё, немедленно останавливается.",
+                "Одна локация по выбору героя становится 'глухой' до конца раунда: на ней не работают никакие свойства карт предметов, оружий и навыков.",
+                "Все локации, на которых есть монстры, теряют свои свойства до конца раунда.",
+                "Герой бросает куб: 1–3 — теряет карту предмета на выбор монстров, 4–6 — берёт карту предмета.",
+                "Герой бросает куб: выпавшее число определяет, сколько карт направления он может выложить в этом раунде (Не более 5). В случае, если выпадает 6 – перемещается свободно на 3 карты локации в независимости от карт направлений",
+                "Герой бросает куб: если четное — все монстры пропускают ход, если нечетное — герой пропускает ход.",
+                "Герой бросает куб: 1–3 — один монстр получает +1 к скорости, 4–6 — все монстры получают –1 к скорости.",
+                "Герой выбирает: переместить всех монстров на одну локацию дальше от себя, но потерять одно обычное оружие, или оставить всё как есть.",
+                "Монстры получают на выбор: скорость +1 (в следующем раунде будет -1), или сила +3 (в следующем раунде будет -3)",
+                "Все игроки закрывают глаза и по очереди перемещают фигурку своего персонажа на случайную локацию."
+            ];
+
+            // ---------- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ----------
             const audio = document.getElementById('bg-music');
             const eventDiv = document.getElementById('event-text');
             const startBtn = document.getElementById('start-btn');
             const restartBtn = document.getElementById('restart-btn');
-            const loadingDiv = document.getElementById('loading');
 
             let timerId = null;            // id текущего таймера
-            let eventsShown = 0;           // сколько событий уже показано (для нейтральных каждых 5)
-            let lastTwoBonusTypes = [];     // два последних типа бонусов ('hero' или 'monster') без учёта нейтральных
-
-            // ---------- ФУНКЦИЯ ЗАГРУЗКИ JSON ----------
-            async function loadEvents() {
-                try {
-                    const response = await fetch('events.json');
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    const data = await response.json();
-                    
-                    // Валидация структуры
-                    if (!data.heroBonuses || !data.monsterBonuses || !data.neutralEvents) {
-                        throw new Error('Неверная структура JSON: отсутствуют нужные поля');
-                    }
-                    if (!Array.isArray(data.heroBonuses) || !Array.isArray(data.monsterBonuses) || !Array.isArray(data.neutralEvents)) {
-                        throw new Error('Поля JSON должны быть массивами');
-                    }
-                    if (data.heroBonuses.length === 0 || data.monsterBonuses.length === 0 || data.neutralEvents.length === 0) {
-                        throw new Error('Массивы событий не могут быть пустыми');
-                    }
-
-                    heroBonuses = data.heroBonuses;
-                    monsterBonuses = data.monsterBonuses;
-                    neutralEvents = data.neutralEvents;
-                    dataLoaded = true;
-                    loadError = false;
-                    loadingDiv.textContent = '✅ События загружены';
-                    loadingDiv.style.color = '#a0ffa0';
-                    
-                    // Активируем кнопку старта
-                    startBtn.disabled = false;
-                } catch (err) {
-                    console.error('Ошибка загрузки events.json:', err);
-                    loadError = true;
-                    loadingDiv.textContent = `❌ Ошибка загрузки: ${err.message}. Проверьте наличие events.json.`;
-                    loadingDiv.style.color = '#ffaaaa';
-                    startBtn.disabled = true;
-                    startBtn.title = 'Не удалось загрузить события';
-                }
-            }
+            let eventsShown = 0;            // сколько событий уже показано (для нейтральных каждых 5)
+            let lastTwoBonusTypes = [];      // два последних типа бонусов ('hero' или 'monster') без учёта нейтральных
 
             // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
             function getRandomTime() {
-                const min = 5 * 60 * 1000;  // 300000 мс = 5 минут
-                const max = 8 * 60 * 1000;  // 480000 мс = 8 минут
+                // от 5 до 8 минут (в миллисекундах)
+                const min = 5 * 60 * 1000;  // 300000
+                const max = 8 * 60 * 1000;  // 480000
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
 
+            // Выбор случайного элемента из массива
             function randomItem(arr) {
                 return arr[Math.floor(Math.random() * arr.length)];
             }
 
-            // Выбор события с учётом правил (каждое 5-е — нейтральное, не более двух одинаковых бонусов подряд)
+            // Основная функция выбора события с учётом правил
             function selectEvent() {
-                if (!dataLoaded) {
-                    // fallback – на всякий случай (но старт не должен быть доступен без данных)
-                    return { type: 'neutral', text: 'События не загружены. Перезагрузите страницу.' };
-                }
-                const nextEventNumber = eventsShown + 1;
+                const nextEventNumber = eventsShown + 1; // номер следующего события (1,2,3...)
 
-                // Нейтральное событие каждые 5 раз
+                // Проверяем, должно ли событие быть нейтральным (каждое 5-е)
                 if (nextEventNumber % 5 === 0) {
                     return { type: 'neutral', text: randomItem(neutralEvents) };
                 }
 
-                // Выбор между героем и монстром
+                // Иначе выбираем между героем и монстром с учётом ограничения на 2 подряд
                 let candidateType;
                 const types = ['hero', 'monster'];
+
+                // Генерируем случайный тип (0 - герой, 1 - монстр)
                 const randomIndex = Math.floor(Math.random() * 2);
                 candidateType = types[randomIndex];
 
-                // Запрещаем третий подряд одинаковый бонус
+                // Проверяем, не будет ли это третьим подряд одного типа
                 if (lastTwoBonusTypes.length === 2) {
                     const [a, b] = lastTwoBonusTypes;
                     if (a === b && a === candidateType) {
+                        // Будет третий подряд - меняем на противоположный
                         candidateType = (candidateType === 'hero') ? 'monster' : 'hero';
                     }
                 }
 
-                // Обновляем историю
+                // Обновляем историю (сохраняем не больше двух)
                 lastTwoBonusTypes.push(candidateType);
                 if (lastTwoBonusTypes.length > 2) {
                     lastTwoBonusTypes.shift();
                 }
 
+                // Возвращаем текст в зависимости от типа
                 if (candidateType === 'hero') {
                     return { type: 'hero', text: randomItem(heroBonuses) };
                 } else {
@@ -611,7 +210,7 @@
 
             // Функция, вызываемая по истечении таймера
             function onTimerFinish() {
-                // 1. Останавливаем музыку
+                // 1. Останавливаем музыку (ставим на паузу и сбрасываем время, чтобы при перезапуске начать с начала)
                 audio.pause();
                 audio.currentTime = 0;
 
@@ -620,88 +219,80 @@
 
                 // 3. Получаем событие
                 const event = selectEvent();
-                eventsShown++;
+                eventsShown++; // увеличиваем счётчик показанных событий
 
-                // 4. Отображаем текст
+                // 4. Отображаем текст белым цветом
                 eventDiv.style.display = 'block';
                 eventDiv.style.color = 'white';
                 eventDiv.textContent = event.text;
 
-                // 5. Управление кнопками
+                // 5. Делаем кнопку "Перезапустить" активной
                 restartBtn.disabled = false;
-                startBtn.disabled = true;
+                startBtn.disabled = true; // старт теперь не нужен
             }
 
             // Запуск таймера и музыки
             function startGame() {
-                if (!dataLoaded) {
-                    alert('События ещё не загружены. Подождите или обновите страницу.');
-                    return;
-                }
                 if (timerId) {
                     clearTimeout(timerId);
                 }
 
-                // Сброс внешнего вида
+                // Сброс оформления
                 document.body.style.backgroundColor = '#111';
                 eventDiv.style.display = 'none';
                 eventDiv.textContent = '';
 
-                // Пробуем запустить музыку (браузер может запросить взаимодействие)
+                // Пытаемся играть музыку (браузер может запросить взаимодействие)
                 audio.play().catch(e => {
-                    console.warn('Автозапуск музыки заблокирован. Нажмите "Старт" ещё раз или разрешите автозапуск.');
+                    console.warn('Автозапуск музыки заблокирован браузером. Нажмите "Старт" ещё раз или разрешите автозапуск.');
+                    // Кнопка старта остаётся активной, пользователь нажмёт ещё раз
                 });
 
+                // Устанавливаем новый таймер на случайное время
                 const delay = getRandomTime();
-                console.log(`Таймер запущен на ${delay / 1000} секунд`);
+                console.log(`Таймер запущен на ${delay / 1000} секунд`); // для отладки (потом можно убрать)
                 timerId = setTimeout(() => {
                     onTimerFinish();
                     timerId = null;
                 }, delay);
 
+                // Обновляем состояние кнопок
                 startBtn.disabled = true;
                 restartBtn.disabled = false;
             }
 
             // Перезапуск: сбрасываем всё и запускаем заново
             function restartGame() {
-                if (!dataLoaded) {
-                    alert('События не загружены, перезапуск невозможен.');
-                    return;
-                }
+                // Очищаем старый таймер
                 if (timerId) {
                     clearTimeout(timerId);
                     timerId = null;
                 }
 
-                // Сброс счётчиков и истории
+                // Сбрасываем счётчики и историю
                 eventsShown = 0;
                 lastTwoBonusTypes = [];
 
-                // Сброс UI
+                // Скрываем текст и возвращаем фон
                 document.body.style.backgroundColor = '#111';
                 eventDiv.style.display = 'none';
                 eventDiv.textContent = '';
 
-                // Остановка музыки и сброс времени
+                // Останавливаем музыку и сбрасываем её время
                 audio.pause();
                 audio.currentTime = 0;
 
-                // Запуск заново
+                // Запускаем игру заново
                 startGame();
             }
 
-            // ---------- ИНИЦИАЛИЗАЦИЯ ----------
-            // Загружаем JSON, после чего кнопка "Старт" станет активной
-            loadEvents();
-
-            // Назначаем обработчики кнопок
+            // ---------- ПРИВЯЗКА К КНОПКАМ ----------
             startBtn.addEventListener('click', startGame);
             restartBtn.addEventListener('click', restartGame);
 
-            // Начальное состояние
-            restartBtn.disabled = true;   // сначала перезапуск недоступен
-            startBtn.disabled = true;     // станет активным после загрузки данных
+            // Начальное состояние: кнопка рестарта недоступна, старт доступна
+            restartBtn.disabled = true;
+            startBtn.disabled = false;
         })();
     </script>
 </body>
