@@ -1,10 +1,24 @@
+Вот обновлённый HTML-документ с реализацией всех ваших правок:
+
+- Кнопка «Старт» молочного цвета с бордовыми буквами, шрифт Montserrat, изначально по центру.
+- При срабатывании таймера музыка ставится на паузу, показывается событие и кнопка «Продолжить»; после её нажатия музыка продолжается с того же места и запускается новый таймер.
+- Внизу экрана — переключатель режима «Только музыка» / «События» (неяркая кнопка) и кнопка «Сброс».
+
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Таймер событий для игры</title>
+    <!-- Шрифт Montserrat -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
+        * {
+            user-select: none;
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             height: 100vh;
@@ -12,11 +26,40 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
             transition: background-color 2s ease;
             background-color: #111;
             color: white;
+            position: relative;
         }
+
+        /* Центральная кнопка СТАРТ */
+        .start-button {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 2.5rem;
+            padding: 20px 50px;
+            background-color: #fdfaf3;   /* молочный */
+            color: #800000;              /* бордовый */
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background-color 0.2s;
+            letter-spacing: 2px;
+        }
+        .start-button:hover {
+            transform: scale(1.02);
+            background-color: #fff8ed;
+        }
+        .start-button:active {
+            transform: scale(0.98);
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* Текст события */
         #event-text {
             font-size: 2rem;
             max-width: 800px;
@@ -24,17 +67,415 @@
             padding: 20px;
             white-space: pre-wrap;
             display: none;
+            font-weight: 500;
+            line-height: 1.3;
+            background: rgba(0,0,0,0.6);
+            border-radius: 32px;
+            margin: 20px;
         }
-        #controls {
+
+        /* Кнопка "Продолжить" (появляется после события) */
+        .continue-btn {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 1.4rem;
+            padding: 12px 32px;
+            background-color: #fdfaf3;
+            color: #800000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: 0.2s;
+        }
+        .continue-btn:hover {
+            background-color: #fff2df;
+            transform: scale(1.02);
+        }
+
+        /* Панель управления внизу */
+        .bottom-panel {
             position: fixed;
             bottom: 20px;
-            left: 20px;
+            left: 0;
+            right: 0;
             display: flex;
-            gap: 10px;
+            justify-content: center;
+            gap: 20px;
+            z-index: 10;
         }
-        button {
-            padding: 10px 20px;
-            font-size: 1rem;
+        .ctrl-btn {
+            background-color: #2c2c2c;
+            border: 1px solid #555;
+            color: #ddd;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .ctrl-btn:hover {
+            background-color: #3a3a3a;
+            color: white;
+        }
+        .ctrl-btn.reset-btn {
+            border-color: #7a4c4c;
+        }
+
+        /* контейнер для центрирования стартовой кнопки */
+        .center-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            flex-direction: column;
+        }
+
+        /* экран событий: текст + кнопка продолжить по центру */
+        .event-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 90vw;
+        }
+
+        /* мелкие правки */
+        @media (max-width: 600px) {
+            .start-button {
+                font-size: 1.8rem;
+                padding: 14px 32px;
+            }
+            #event-text {
+                font-size: 1.4rem;
+            }
+            .continue-btn {
+                font-size: 1.2rem;
+                padding: 10px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Кнопка СТАРТ (изначально в центре) -->
+<div id="start-wrapper" class="center-wrapper">
+    <button id="start-btn" class="start-button">СТАРТ</button>
+</div>
+
+<!-- Область события (скрыта) -->
+<div id="event-area" style="display: none; flex-direction: column; align-items: center;">
+    <div id="event-text"></div>
+    <button id="continue-btn" class="continue-btn">▶ ПРОДОЛЖИТЬ</button>
+</div>
+
+<!-- Нижняя панель: переключатель режима и сброс -->
+<div class="bottom-panel">
+    <button id="mode-toggle" class="ctrl-btn">🎵 Режим: События</button>
+    <button id="reset-game" class="ctrl-btn reset-btn">⟳ Сброс</button>
+</div>
+
+<audio id="bg-music" loop preload="auto">
+    <source src="music.mp3" type="audio/mpeg">
+    Твой браузер не поддерживает аудио.
+</audio>
+
+<script>
+    (function(){
+        // ---------- НОВЫЕ СПИСКИ СОБЫТИЙ (из вашего JSON) ----------
+        const heroBonuses = [
+            "Герой меняет местами две любые карты локаций на игровом поле.",
+            "Герой перемещает одного любого монстра на любую другую локацию.",
+            "Все монстры немедленно перемещаются на одну локацию дальше от героя. (в любом направлении)",
+            "Герой перемещается на любую локацию по своему выбору.",
+            "В этом раунде на обдумывание хода монстров дается 30 секунд. Если не успевают, их ход пропускается.",
+            "Монстры в этом раунде не могут обсуждать свои действия друг с другом.",
+            "Герой может подсмотреть 3 верхние карты из колоды предметов и вернуть их на место в нужном порядке.",
+            "В этом раунде герой может один раз избежать столкновения: если он должен вступить в бой на локации с монстром, вместо этого он может отойти на соседнюю локацию.",
+            "Если в этом раунде произойдет столкновение, герой может перебросить кубы один раз.",
+            "Если в этом раунде произойдет столкновение, герой может сдаться, чтобы немедленно сбежать на соседнюю локацию (монстр не забирает ментальное здоровье).",
+            "Если в этом раунде произойдет столкновение, герой может потратить одну карту ментального здоровья, чтобы автоматически победить. Карта ментального здоровья переходит в сброс, а не монстру.",
+            "Если в этом раунде произойдет столкновение, в случае проигрыша герой может отдать карту предмета вместо карты ментального здоровья. Монстр сможет использовать ее, адаптируя особенность карты по договоренности с игроками",
+            "Герой восстанавливает одну карту ментального здоровья из сброса.",
+            "Герой может отдать монстру одну карту ментального здоровья, чтобы до конца игры лишить его одного из его открытых навыков.",
+            "Герой может сбросить 2 карты предметов, чтобы немедленно переместить любого монстра на любую другую локацию.",
+            "Герой немедленно берет одну карту предмета из колоды.",
+            "Герой может обменять одну свою карту предмета на любую карту из сброса предметов.",
+            "Одно обычное оружие героя до конца раунда дает +1 дополнительный кубик в ближайшем столкновении.",
+            "В этом раунде монстры не могут использовать свои проклятые предметы.",
+            "Монстры теряют один из своих проклятых предметов на выбор героя.",
+            "Все открытые навыки монстров не работают в этом раунде.",
+            "Один из монстров (по выбору героя) не может использовать свои навыки в этом раунде.",
+            "Все монстры в этом раунде получают штраф –1 к скорости за каждый открытый навык.",
+            "Одна локация по выбору героя становится 'исцеляющей' до конца раунда (герой объявляет свой выбор до начала фазы перемещений)",
+            "Герой может сбросить все карты в инвентаре в обмен на одну карту ментального здоровья из сброса.",
+            "Герой может сбросить одну карту предмета (на выбор монстров), чтобы они не атаковали его в этом раунде.",
+            "Герой может сбросить три карты предметов, чтобы немедленно взять одно легендарное оружие из колоды или сброса.",
+            "Герой бросает куб: результат делится на 2 — столько карт предметов он может взять в конце раунда.",
+            "Герой меняет местами двух любых монстров на поле.",
+            "В этом раунде монстры не получают наград за победу над героем.",
+            "Герой может немедленно переместить любого одного монстра на локацию с другим монстром."
+        ];
+
+        const monsterBonuses = [
+            "Все монстры немедленно перемещаются на одну локацию ближе к герою.",
+            "В этом раунде на обдумывание хода героя дается 30 секунд. Если не успевает, он ходит по случайному выбору. В случае, герой упирается «в стену» в ходе перемещения, на этом его ход завершается.",
+            "В ближайшем столкновении монстры могут заставить героя перебросить любой куб на свой выбор один раз.",
+            "В этом раунде, если герой заканчивает движение на локации, соседней с монстром, между ними происходит столкновение.",
+            "В ближайшем столкновении герой получает бросает на 1 кубик меньше.",
+            "Герой теряет одну карту ментального здоровья без боя, но кладет ее в сброс.",
+            "Герой сбрасывает одну карту предмета на выбор монстров в сброс.",
+            "Одно легендарное оружие героя до конца раунда дает на 1 кубик меньше.",
+            "Все карты предметов в руке героя не работают до конца раунда.",
+            "Монстры мгновенно открывают один из своих еще не открытых навыков.",
+            "Один из монстров может немедленно применить один из своих навыков (даже не открытый) прямо сейчас, если это возможно.",
+            "Любая локация по выбору героя становится 'опасной' до конца раунда: закончив на ней свой ход герой теряет 1 ментальное здоровье",
+            "В этом раунде герой не получает наград за победу над монстрами.",
+            "Один из монстров может вернуть любую карту проклятого предмета из сброса.",
+            "Монстры берут 3 карты проклятых предметов, изучают их и возвращают в колоду в нужном им порядке",
+            "Если в этом раунде произойдет столкновение с несколькими монстрами, Герой должен сражаться с каждым из монстров, даже если уже проиграл одному из них."
+        ];
+
+        const neutralEvents = [
+            "Герой убирает одну выбранную локацию с поля и заменяет её на любую случайную новую (из неиспользуемой части карт локаций).",
+            "Скорость каждого монстра в этом раунде определяется броском куба.",
+            "Герой может взять одно легендарное оружие из сброса или колоды, но взамен монстры немедленно перемещаются на одну локацию ближе к герою.",
+            "Одна локация по выбору героя становится 'ловушкой' до конца раунда: первый, кто входит на неё, немедленно останавливается.",
+            "Одна локация по выбору героя становится 'глухой' до конца раунда: на ней не работают никакие свойства карт предметов, оружий и навыков.",
+            "Все локации, на которых есть монстры, теряют свои свойства до конца раунда.",
+            "Герой бросает куб: 1–3 — теряет карту предмета на выбор монстров, 4–6 — берёт карту предмета.",
+            "Герой бросает куб: выпавшее число определяет, сколько карт направления он может выложить в этом раунде (Не более 5). В случае, если выпадает 6 – перемещается свободно на 3 карты локации в независимости от карт направлений",
+            "Герой бросает куб: если четное — все монстры пропускают ход, если нечетное — герой пропускает ход.",
+            "Герой бросает куб: 1–3 — один монстр получает +1 к скорости, 4–6 — все монстры получают –1 к скорости.",
+            "Герой выбирает: переместить всех монстров на одну локацию дальше от себя, но потерять одно обычное оружие, или оставить всё как есть.",
+            "Монстры получают на выбор: скорость +1 (в следующем раунде будет -1), или сила +3 (в следующем раунде будет -3)",
+            "Все игроки закрывают глаза и по очереди перемещают фигурку своего персонажа на случайную локацию."
+        ];
+
+        // -------- DOM элементы ----------
+        const audio = document.getElementById('bg-music');
+        const startWrapper = document.getElementById('start-wrapper');
+        const startBtn = document.getElementById('start-btn');
+        const eventArea = document.getElementById('event-area');
+        const eventTextDiv = document.getElementById('event-text');
+        const continueBtn = document.getElementById('continue-btn');
+        const modeToggle = document.getElementById('mode-toggle');
+        const resetBtn = document.getElementById('reset-game');
+
+        // -------- Состояния ----------
+        let timerId = null;                 // текущий таймер
+        let eventsShown = 0;               // сколько событий уже показано
+        let lastTwoBonusTypes = [];         // история типов (hero/monster)
+        let isGameActive = false;           // запущена ли игра (музыка играет + активный режим)
+        let eventsMode = true;              // true = режим с событиями, false = только музыка
+        let isEventDisplayed = false;       // показано ли сейчас событие (ждём продолжения)
+
+        // -------- Вспомогательные функции ----------
+        function getRandomTime() {
+            const min = 5 * 60 * 1000;  // 5 минут
+            const max = 8 * 60 * 1000;  // 8 минут
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        // Выбор события с учётом правила "каждое 5-ое нейтральное" и не более 2х подряд одного типа
+        function selectEvent() {
+            const nextEventNumber = eventsShown + 1;
+            if (nextEventNumber % 5 === 0) {
+                return { type: 'neutral', text: randomItem(neutralEvents) };
+            }
+
+            let candidateType = Math.random() < 0.5 ? 'hero' : 'monster';
+            if (lastTwoBonusTypes.length === 2) {
+                const [a, b] = lastTwoBonusTypes;
+                if (a === b && a === candidateType) {
+                    candidateType = candidateType === 'hero' ? 'monster' : 'hero';
+                }
+            }
+            lastTwoBonusTypes.push(candidateType);
+            if (lastTwoBonusTypes.length > 2) lastTwoBonusTypes.shift();
+
+            const text = candidateType === 'hero' ? randomItem(heroBonuses) : randomItem(monsterBonuses);
+            return { type: candidateType, text };
+        }
+
+        // Остановить таймер, если активен
+        function stopTimer() {
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+        }
+
+        // Запустить следующий таймер (только если игра активна, режим событий включён, и нет показанного события)
+        function scheduleNextEvent() {
+            if (!isGameActive || !eventsMode || isEventDisplayed) return;
+            stopTimer();
+            const delay = getRandomTime();
+            console.log(`⏱ Следующее событие через ${(delay/1000).toFixed(0)} сек`);
+            timerId = setTimeout(() => {
+                onTimerFinish();
+            }, delay);
+        }
+
+        // Сброс оформления и скрытие события
+        function hideEventUI() {
+            eventArea.style.display = 'none';
+            eventTextDiv.textContent = '';
+            document.body.style.backgroundColor = '#111';
+            isEventDisplayed = false;
+        }
+
+        // Действие по истечении таймера (появление события)
+        function onTimerFinish() {
+            if (!isGameActive || !eventsMode || isEventDisplayed) return;
+            // Пауза музыки (останавливаем, не сбрасывая currentTime)
+            audio.pause();   // музыка на паузе, время сохраняется
+            
+            // Меняем фон на бордовый
+            document.body.style.backgroundColor = '#800000';
+            
+            // Генерируем событие
+            const event = selectEvent();
+            eventsShown++;
+            
+            // Показываем текст события
+            eventTextDiv.textContent = event.text;
+            eventArea.style.display = 'flex';   // flex для центрирования содержимого
+            eventTextDiv.style.display = 'block';
+            eventTextDiv.style.color = 'white';
+            
+            // Показываем флаг, что событие активно
+            isEventDisplayed = true;
+            
+            // Убедимся, что таймер остановлен (он уже сработал, но на всякий случай)
+            stopTimer();
+        }
+
+        // Продолжить игру после события
+        function continueAfterEvent() {
+            if (!isEventDisplayed) return;
+            // Скрываем UI события
+            hideEventUI();
+            // Возобновляем музыку с того же места
+            audio.play().catch(e => console.warn("Не удалось возобновить музыку:", e));
+            // Если режим событий всё ещё активен, запускаем следующий таймер
+            if (isGameActive && eventsMode) {
+                scheduleNextEvent();
+            }
+        }
+
+        // Запуск игры (нажатие на СТАРТ)
+        function startGame() {
+            if (isGameActive) return; // уже активно
+            
+            // Сброс состояния перед стартом (если были остатки)
+            resetGameState(false);  // false = не менять видимость стартовой кнопки полностью, но очистить таймер/события
+            
+            // Включаем музыку (с самого начала)
+            audio.currentTime = 0;
+            audio.play().catch(err => {
+                console.warn("Автозапуск заблокирован, но игра продолжится. Нажмите ещё раз, если нужно.");
+            });
+            
+            isGameActive = true;
+            isEventDisplayed = false;
+            
+            // Скрываем стартовую кнопку
+            startWrapper.classList.add('hidden');
+            // Если режим событий, запускаем таймер
+            if (eventsMode) {
+                scheduleNextEvent();
+            }
+            // Если режим только музыки — ничего не планируем, просто играет фон
+        }
+
+        // Полный сброс игры (без автозапуска)
+        function resetGameState(hideStartBtn = true) {
+            // Остановить таймер
+            stopTimer();
+            // Остановить музыку и сбросить время
+            audio.pause();
+            audio.currentTime = 0;
+            // Сбросить счётчики
+            eventsShown = 0;
+            lastTwoBonusTypes = [];
+            // Скрыть событие, если оно показывалось
+            hideEventUI();
+            // Сбросить фон
+            document.body.style.backgroundColor = '#111';
+            // Сбросить флаги активности
+            isGameActive = false;
+            isEventDisplayed = false;
+            // Показать кнопку старт (если hideStartBtn == true показываем всегда, иначе по ситуации)
+            startWrapper.classList.remove('hidden');
+            // Убираем возможные артефакты в eventArea
+            eventArea.style.display = 'none';
+        }
+
+        // Переключение режима (события / только музыка)
+        function toggleMode() {
+            eventsMode = !eventsMode;
+            // Обновить текст кнопки
+            modeToggle.textContent = eventsMode ? "🎵 Режим: События" : "🎧 Режим: Только музыка";
+            
+            // Если игра активна (музыка играет), адаптируем поведение
+            if (isGameActive) {
+                if (eventsMode) {
+                    // Перешли в режим событий -> запускаем таймер, если нет активного события
+                    if (!isEventDisplayed) {
+                        scheduleNextEvent();
+                    }
+                } else {
+                    // Перешли в режим только музыки -> убиваем таймер и скрываем любое висящее событие
+                    stopTimer();
+                    if (isEventDisplayed) {
+                        // Прячем событие и продолжаем музыку (автоматически)
+                        hideEventUI();
+                        audio.play().catch(e => console.warn);
+                    }
+                }
+            }
+        }
+
+        // Сброс (кнопка снизу)
+        function fullReset() {
+            resetGameState(true);   // полностью сбрасываем, показываем кнопку СТАРТ
+            // также убедимся, что все флаги корректны
+            isGameActive = false;
+            isEventDisplayed = false;
+            eventsMode = true;     // по умолчанию после сброса ставим режим событий (можно оставить как было, но интуитивно удобно)
+            modeToggle.textContent = "🎵 Режим: События";
+            // Если были скрыты UI элементы - всё уже сброшено
+        }
+
+        // -------- Обработчики ----------
+        startBtn.addEventListener('click', startGame);
+        continueBtn.addEventListener('click', continueAfterEvent);
+        modeToggle.addEventListener('click', toggleMode);
+        resetBtn.addEventListener('click', fullReset);
+        
+        // Инициализация: кнопка старт видна, режим событий включён
+        startWrapper.classList.remove('hidden');
+        eventArea.style.display = 'none';
+        isGameActive = false;
+        eventsMode = true;
+        modeToggle.textContent = "🎵 Режим: События";
+        
+        // Доп. защита: если музыка не загружена, не мешаем
+        audio.load();
+    })();
+</script>
+</body>
+</html>
+```            font-size: 1rem;
             background-color: #333;
             color: white;
             border: 1px solid #666;
