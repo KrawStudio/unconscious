@@ -41,6 +41,238 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        button:hover:not(:disabled) {
+            background-color: #555;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #start-btn {
+            background-color: #4CAF50;
+            border-color: #45a049;
+        }
+        #start-btn:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        #restart-btn {
+            background-color: #008CBA;
+            border-color: #007bb5;
+        }
+        #restart-btn:hover:not(:disabled) {
+            background-color: #007bb5;
+        }
+        #loading {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #ffcc00;
+            max-width: 400px;
+            z-index: 100;
+        }
+        .error-detail {
+            font-size: 0.8rem;
+            color: #ff8888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="event-text"></div>
+    <div id="controls">
+        <button id="start-btn" disabled>▶ Старт (включить музыку и таймер)</button>
+        <button id="restart-btn" disabled>↺ Перезапустить</button>
+    </div>
+    <div id="loading">⏳ Загрузка событий...</div>
+
+    <audio id="bg-music" loop preload="auto">
+        <source src="music.mp3" type="audio/mpeg">
+        Твой браузер не поддерживает аудио.
+    </audio>
+
+    <script>
+        (function() {
+            // ---------- ПЕРЕМЕННЫЕ ДЛЯ ЗАГРУЖЕННЫХ ДАННЫХ ----------
+            let heroBonuses = [];
+            let monsterBonuses = [];
+            let neutralEvents = [];
+            let dataLoaded = false;
+            let loadError = false;
+
+            // ---------- ОСТАЛЬНЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ ----------
+            const audio = document.getElementById('bg-music');
+            const eventDiv = document.getElementById('event-text');
+            const startBtn = document.getElementById('start-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const loadingDiv = document.getElementById('loading');
+
+            let timerId = null;
+            let eventsShown = 0;
+            let lastTwoBonusTypes = [];
+
+            // ---------- ФУНКЦИЯ ЗАГРУЗКИ JSON С ПОДРОБНЫМИ ОШИБКАМИ ----------
+            async function loadEvents() {
+                try {
+                    const response = await fetch('events.json?_=' + Date.now()); // маленький хак, чтобы избежать кэша
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    const text = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (jsonErr) {
+                        // Показываем позицию ошибки
+                        const msg = jsonErr.message;
+                        throw new Error(`Ошибка парсинга JSON: ${msg}\nПроверьте синтаксис файла events.json (лишние запятые, кавычки и т.д.)`);
+                    }
+                    
+                    // Валидация структуры
+                    if (!data.heroBonuses || !data.monsterBonuses || !data.neutralEvents) {
+                        throw new Error('Неверная структура JSON: отсутствуют поля heroBonuses, monsterBonuses или neutralEvents');
+                    }
+                    if (!Array.isArray(data.heroBonuses) || !Array.isArray(data.monsterBonuses) || !Array.isArray(data.neutralEvents)) {
+                        throw new Error('Поля JSON должны быть массивами');
+                    }
+                    if (data.heroBonuses.length === 0 || data.monsterBonuses.length === 0 || data.neutralEvents.length === 0) {
+                        throw new Error('Массивы событий не могут быть пустыми');
+                    }
+
+                    heroBonuses = data.heroBonuses;
+                    monsterBonuses = data.monsterBonuses;
+                    neutralEvents = data.neutralEvents;
+                    dataLoaded = true;
+                    loadError = false;
+                    loadingDiv.innerHTML = '✅ События загружены';
+                    loadingDiv.style.color = '#a0ffa0';
+                    
+                    startBtn.disabled = false;
+                } catch (err) {
+                    console.error('Ошибка загрузки events.json:', err);
+                    loadError = true;
+                    loadingDiv.innerHTML = `❌ Ошибка загрузки: ${err.message}<br><span class="error-detail">Проверьте наличие events.json и его синтаксис.</span>`;
+                    loadingDiv.style.color = '#ffaaaa';
+                    startBtn.disabled = true;
+                    startBtn.title = 'Не удалось загрузить события';
+                }
+            }
+
+            // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+            function getRandomTime() {
+                const min = 5 * 60 * 1000;
+                const max = 8 * 60 * 1000;
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+
+            function randomItem(arr) {
+                return arr[Math.floor(Math.random() * arr.length)];
+            }
+
+            function selectEvent() {
+                if (!dataLoaded) {
+                    return { type: 'neutral', text: 'События не загружены. Перезагрузите страницу.' };
+                }
+                const nextEventNumber = eventsShown + 1;
+
+                if (nextEventNumber % 5 === 0) {
+                    return { type: 'neutral', text: randomItem(neutralEvents) };
+                }
+
+                let candidateType;
+                const types = ['hero', 'monster'];
+                const randomIndex = Math.floor(Math.random() * 2);
+                candidateType = types[randomIndex];
+
+                if (lastTwoBonusTypes.length === 2) {
+                    const [a, b] = lastTwoBonusTypes;
+                    if (a === b && a === candidateType) {
+                        candidateType = (candidateType === 'hero') ? 'monster' : 'hero';
+                    }
+                }
+
+                lastTwoBonusTypes.push(candidateType);
+                if (lastTwoBonusTypes.length > 2) lastTwoBonusTypes.shift();
+
+                if (candidateType === 'hero') {
+                    return { type: 'hero', text: randomItem(heroBonuses) };
+                } else {
+                    return { type: 'monster', text: randomItem(monsterBonuses) };
+                }
+            }
+
+            function onTimerFinish() {
+                audio.pause();
+                audio.currentTime = 0;
+                document.body.style.backgroundColor = '#800000';
+                const event = selectEvent();
+                eventsShown++;
+                eventDiv.style.display = 'block';
+                eventDiv.style.color = 'white';
+                eventDiv.textContent = event.text;
+                restartBtn.disabled = false;
+                startBtn.disabled = true;
+            }
+
+            function startGame() {
+                if (!dataLoaded) {
+                    alert('События ещё не загружены. Обновите страницу или проверьте файл events.json.');
+                    return;
+                }
+                if (timerId) clearTimeout(timerId);
+
+                document.body.style.backgroundColor = '#111';
+                eventDiv.style.display = 'none';
+                eventDiv.textContent = '';
+
+                audio.play().catch(e => console.warn('Автозапуск музыки заблокирован.'));
+
+                const delay = getRandomTime();
+                console.log(`Таймер запущен на ${delay / 1000} секунд`);
+                timerId = setTimeout(() => {
+                    onTimerFinish();
+                    timerId = null;
+                }, delay);
+
+                startBtn.disabled = true;
+                restartBtn.disabled = false;
+            }
+
+            function restartGame() {
+                if (!dataLoaded) {
+                    alert('События не загружены, перезапуск невозможен.');
+                    return;
+                }
+                if (timerId) clearTimeout(timerId);
+                eventsShown = 0;
+                lastTwoBonusTypes = [];
+                document.body.style.backgroundColor = '#111';
+                eventDiv.style.display = 'none';
+                eventDiv.textContent = '';
+                audio.pause();
+                audio.currentTime = 0;
+                startGame();
+            }
+
+            // ---------- ИНИЦИАЛИЗАЦИЯ ----------
+            loadEvents();
+            startBtn.addEventListener('click', startGame);
+            restartBtn.addEventListener('click', restartGame);
+            restartBtn.disabled = true;
+            startBtn.disabled = true;
+        })();
+    </script>
+</body>
+</html>            font-size: 1rem;
+            background-color: #333;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+        }
         button:hover {
             background-color: #555;
         }
